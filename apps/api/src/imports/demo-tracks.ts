@@ -1,0 +1,33 @@
+import type { ImportedTrack } from '@musicdude/shared';
+
+/** Small, deliberately diverse demo library: eras, regions, languages, moods. */
+export const DEMO_TRACKS: ImportedTrack[] = [
+  { title: 'Bohemian Rhapsody', artist: 'Queen' },
+  { title: 'Smells Like Teen Spirit', artist: 'Nirvana' },
+  { title: 'Billie Jean', artist: 'Michael Jackson' },
+  { title: 'One More Time', artist: 'Daft Punk' },
+  { title: 'Paranoid Android', artist: 'Radiohead' },
+  { title: 'Alors on danse', artist: 'Stromae' },
+  { title: 'La Vie en rose', artist: 'Édith Piaf' },
+  { title: 'Обійми', artist: 'Океан Ельзи' },
+  { title: 'Шум', artist: 'Go_A' },
+  { title: 'MALAMENTE', artist: 'Rosalía' },
+  { title: 'Du hast', artist: 'Rammstein' },
+  { title: 'Beggin', artist: 'Måneskin' },
+  { title: 'Ye', artist: 'Burna Boy' },
+  { title: 'Water No Get Enemy', artist: 'Fela Kuti' },
+  { title: 'Dynamite', artist: 'BTS' },
+  { title: 'Tití Me Preguntó', artist: 'Bad Bunny' },
+  { title: 'So What', artist: 'Miles Davis' },
+  { title: 'Dancing Queen', artist: 'ABBA' },
+  { title: 'HUMBLE.', artist: 'Kendrick Lamar' },
+  { title: 'bad guy', artist: 'Billie Eilish' },
+  { title: 'Do I Wanna Know?', artist: 'Arctic Monkeys' },
+  { title: 'Back to Black', artist: 'Amy Winehouse' },
+  { title: 'Ring of Fire', artist: 'Johnny Cash' },
+  { title: 'Windowlicker', artist: 'Aphex Twin' },
+  { title: 'The Less I Know the Better', artist: 'Tame Impala' },
+  { title: 'Clair de Lune', artist: 'Claude Debussy' },
+  { title: 'Gimme Shelter', artist: 'The Rolling Stones' },
+  { title: 'Blinding Lights', artist: 'The Weeknd' },
+];

@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "MusicDude",
+    "slug": "musicdude",
+    "version": "0.1.0",
+    "scheme": "musicdude",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A0A0F",
+    "ios": {
+      "bundleIdentifier": "com.musicdude.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.musicdude.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-localization"]
+  }
+}

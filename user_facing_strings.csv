@@ -1,0 +1,54 @@
+phrase,source
+"Your music. Your mirror.",welcome.tsx – hero headline
+"See what your library says about you — eras, cultures, languages, moods.",welcome.tsx – hero subtitle
+"Get started",welcome.tsx – primary CTA
+"Log in",welcome.tsx / login.tsx – button
+"Email",login.tsx / register.tsx – field
+"Password",login.tsx / register.tsx – field
+"Confirm password",register.tsx – field
+"First name",register.tsx – field
+"Create account",register.tsx – title + button
+"Forgot password?",login.tsx – link (screen pending)
+"Already have an account?",register.tsx – footer
+"New here?",login.tsx – footer
+"Create one",login.tsx – footer link
+"Invalid email or password",login.tsx – error
+"Passwords do not match",register.tsx – error
+"Something went wrong. Try again.",shared – generic error
+"Portrait",(tabs)/_layout.tsx – tab title
+"Library",(tabs)/_layout.tsx – tab title
+"Events",(tabs)/_layout.tsx – tab title
+"Change",(tabs)/_layout.tsx – tab title
+"Profile",(tabs)/_layout.tsx – tab title
+"Your portrait appears after your first scan.",portrait.tsx – empty state
+"Import your music to begin.",portrait.tsx / library.tsx – empty state
+"Import music",portrait.tsx – CTA
+"Scanning your library…",scan progress (screen pending)
+"Events near you, matched to your taste.",events.tsx – description
+"Coming soon",shared – placeholder badge
+"How your taste changes over time.",change.tsx – description
+"Settings",profile.tsx – section
+"Language",profile.tsx – row
+"Notifications",profile.tsx – row
+"Song for today",notification channel A toggle (pending)
+"Care messages",notification channel B toggle (pending)
+"Account",profile.tsx – section
+"Log out",profile.tsx – row
+"Delete account",profile.tsx – danger row (pending)
+"Cancel",LanguagePickerModal.tsx
+"Save",shared – form action (pending)
+"Retry",shared – error action (pending)
+"Choose your language",LanguagePickerModal.tsx – title
+"Search songs or artists",import-music.tsx – search placeholder
+"Add",import-music.tsx – result pill
+"Added",import-music.tsx – result pill (staged)
+"Start scan",import-music.tsx – primary CTA
+"Try a demo library",import-music.tsx – secondary CTA
+"No results",import-music.tsx – empty search
+"Scan complete",portrait.tsx – done note
+"tracks analyzed",portrait.tsx – progress counter suffix
+"Eras",portrait.tsx – distribution card
+"Regions",portrait.tsx – distribution card
+"Languages",portrait.tsx – distribution card
+"Moods",portrait.tsx – distribution card
+"Tracks",portrait.tsx – count card

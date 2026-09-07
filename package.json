@@ -1,0 +1,28 @@
+{
+  "name": "musicdude",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "init-db": "node scripts/init-db.js",
+    "build": "npm run build --workspaces --if-present",
+    "build:shared": "tsc -p packages/shared/tsconfig.json",
+    "docker:up": "docker compose -f docker/docker-compose.dev.yml up --build",
+    "docker:down": "docker compose -f docker/docker-compose.dev.yml down",
+    "docker:infra": "docker compose -f docker/docker-compose.dev.yml up -d db redis ml",
+    "api:dev": "cd apps/api && npx prisma generate && npm run start:dev",
+    "worker:dev": "npm run dev -w @musicdude/worker",
+    "mobile:start": "npm run start -w @musicdude/mobile"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "pg": "^8.11.0",
+    "typescript": "~5.9.2"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
