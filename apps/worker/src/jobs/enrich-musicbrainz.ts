@@ -1,6 +1,7 @@
 import { RateLimitError, type Job, type Worker } from 'bullmq';
 import { GENRE_SET, LANGUAGE_TAG_MAP } from '@musicdude/shared';
 import { db } from '../db';
+import { refreshItemEmbedding } from '../lib/embedding';
 import { regionFromCountry } from '../lib/facets';
 import { resolveLanguage } from '../lib/language';
 import { rebuildPortrait } from '../lib/portrait';
@@ -257,6 +258,8 @@ async function applyToTracks(artist: StoredArtist): Promise<number> {
        WHERE track_id = $1`,
       [track.id, region, language, genres],
     );
+    // The cultural tower just changed, so the fused vector has to follow.
+    await refreshItemEmbedding(track.id);
     touched += 1;
   }
   return touched;

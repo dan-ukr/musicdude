@@ -23,6 +23,24 @@ export default function Profile() {
       <Text style={styles.heading}>{t('Profile')}</Text>
 
       <View style={styles.card}>
+        <Text style={styles.sectionTitle}>{t('Your music')}</Text>
+        <Pressable style={styles.row} onPress={() => router.push('/import-music')}>
+          <Text style={styles.rowLabel}>{t('Import music')}</Text>
+          <Text style={styles.rowValue}>›</Text>
+        </Pressable>
+        <View style={styles.divider} />
+        <Pressable style={styles.row} onPress={() => router.push('/playlists')}>
+          <Text style={styles.rowLabel}>{t('Playlists')}</Text>
+          <Text style={styles.rowValue}>›</Text>
+        </Pressable>
+        <View style={styles.divider} />
+        <Pressable style={styles.row} onPress={() => router.push('/premium')}>
+          <Text style={styles.rowLabel}>{t('Premium')}</Text>
+          <Text style={styles.rowValue}>€3.99</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.sectionTitle}>{t('Settings')}</Text>
         <Pressable style={styles.row} onPress={() => setPickerOpen(true)}>
           <Text style={styles.rowLabel}>{t('Language')}</Text>

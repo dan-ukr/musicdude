@@ -1,7 +1,15 @@
 import { sleep } from '../db';
 
 export type Resolved = {
+  /** Stored for playback: stable, so it still works days later. */
   previewUrl: string | null;
+  /**
+   * Used for this scan's analysis only. Deezer serves mp3, which decodes with
+   * libsndfile alone; iTunes serves m4a, which needs ffmpeg. Preferring the
+   * mp3 here keeps analysis working wherever the worker runs.
+   */
+  analysisUrl: string | null;
+  artworkUrl: string | null;
   releaseYear: number | null;
   deezerId: number | null;
   itunesId: number | null;
@@ -11,6 +19,8 @@ export type Resolved = {
 
 const EMPTY: Resolved = {
   previewUrl: null,
+  analysisUrl: null,
+  artworkUrl: null,
   releaseYear: null,
   deezerId: null,
   itunesId: null,
@@ -18,13 +28,26 @@ const EMPTY: Resolved = {
   deezerBpm: null,
 };
 
-/** Deezer primary (~10 req/s allowed; we stay well under), iTunes fallback (~20/min). */
+/**
+ * Both sources are consulted, and iTunes wins for the preview URL.
+ *
+ * Deezer's preview links are signed and expire after a few hours: a stored one
+ * stops playing in the app and stops downloading for analysis, which silently
+ * turns real measurements into placeholders. iTunes serves stable URLs, so it
+ * owns `previewUrl`; Deezer still provides popularity (the rarity facet), bpm
+ * and artwork, none of which expire.
+ */
 export async function resolveTrack(title: string, artist: string): Promise<Resolved> {
   const viaDeezer = await resolveDeezer(title, artist);
-  if (viaDeezer.previewUrl) return viaDeezer;
   const viaItunes = await resolveItunes(title, artist);
-  // keep deezer metadata even when its preview was missing
-  return { ...viaDeezer, ...stripNulls(viaItunes) };
+
+  return {
+    ...viaDeezer,
+    ...stripNulls(viaItunes),
+    previewUrl: viaItunes.previewUrl ?? viaDeezer.previewUrl,
+    analysisUrl: viaDeezer.previewUrl ?? viaItunes.previewUrl,
+    artworkUrl: viaDeezer.artworkUrl ?? viaItunes.artworkUrl,
+  };
 }
 
 function stripNulls(r: Resolved): Partial<Resolved> {
@@ -53,9 +76,12 @@ async function resolveDeezer(title: string, artist: string): Promise<Resolved> {
       bpm?: number;
       rank?: number;
       preview?: string;
+      album?: { cover_big?: string; cover_medium?: string };
     };
     return {
       previewUrl: hit.preview || track.preview || null,
+      analysisUrl: hit.preview || track.preview || null,
+      artworkUrl: track.album?.cover_big ?? track.album?.cover_medium ?? null,
       releaseYear: track.release_date ? Number(track.release_date.slice(0, 4)) || null : null,
       deezerId: hit.id,
       itunesId: null,
@@ -72,13 +98,21 @@ async function resolveItunes(title: string, artist: string): Promise<Resolved> {
     const term = encodeURIComponent(`${artist} ${title}`);
     const res = await fetch(`https://itunes.apple.com/search?term=${term}&entity=song&limit=1`);
     const data = (await res.json()) as {
-      results?: { trackId?: number; previewUrl?: string; releaseDate?: string }[];
+      results?: {
+        trackId?: number;
+        previewUrl?: string;
+        releaseDate?: string;
+        artworkUrl100?: string;
+      }[];
     };
     const hit = data.results?.[0];
     if (!hit) return EMPTY;
     return {
       ...EMPTY,
       previewUrl: hit.previewUrl ?? null,
+      analysisUrl: hit.previewUrl ?? null,
+      // iTunes serves any size by substituting the dimensions in the path.
+      artworkUrl: hit.artworkUrl100?.replace('100x100bb', '600x600bb') ?? null,
       releaseYear: hit.releaseDate ? Number(hit.releaseDate.slice(0, 4)) || null : null,
       itunesId: hit.trackId ?? null,
     };

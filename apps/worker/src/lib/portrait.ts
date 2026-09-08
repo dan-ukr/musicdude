@@ -57,16 +57,3 @@ export async function rebuildPortrait(userId: string): Promise<void> {
   );
 }
 
-/** User embedding = average of item embeddings over the library (play-weighting comes later). */
-export async function rebuildUserEmbedding(userId: string): Promise<void> {
-  await db.query(
-    `INSERT INTO taste.user_embeddings (user_id, embedding)
-     SELECT $1, avg(ie.embedding)
-     FROM taste.item_embeddings ie
-     JOIN music.user_tracks ut ON ut.track_id = ie.track_id
-     WHERE ut.user_id = $1
-     HAVING count(*) > 0
-     ON CONFLICT (user_id) DO UPDATE SET embedding = EXCLUDED.embedding, updated_at = now()`,
-    [userId],
-  );
-}

@@ -64,3 +64,17 @@ export function useLanguage() {
 export function useT() {
   return useContext(LanguageContext).t;
 }
+
+/**
+ * Translates a template and substitutes {named} values — used for sentences
+ * built by the server (card reasons, event match lines), which must read
+ * naturally in every language rather than being assembled from English parts.
+ */
+export function useTemplate() {
+  const t = useT();
+  return (template: string, params: Record<string, string> = {}) =>
+    Object.entries(params).reduce(
+      (text, [key, value]) => text.replace(`{${key}}`, value),
+      t(template),
+    );
+}

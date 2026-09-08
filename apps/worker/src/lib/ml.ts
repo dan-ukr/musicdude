@@ -4,9 +4,14 @@ export type AnalyzeResult = {
   tempo_bpm: number;
   energy: number;
   valence: number;
+  brightness: number;
+  dynamism: number;
   key: number;
   mode: number;
+  /** 64-dim acoustic tower output from librosa. */
   embedding: number[];
+  /** False when the preview could not be decoded and values are placeholders. */
+  analyzed: boolean;
 };
 
 export async function analyze(trackId: string, previewUrl: string): Promise<AnalyzeResult | null> {

@@ -44,6 +44,7 @@ export type TrackSummary = {
   title: string;
   artist: string;
   previewUrl: string | null;
+  artworkUrl: string | null;
   releaseYear: number | null;
   facets: Omit<TrackFacets, 'trackId'> | null;
 };
@@ -67,12 +68,91 @@ export type PortraitPayload = {
 };
 
 // ---------- Daily card ----------
+/**
+ * The reason is a translatable template plus values, so the bridge sentence
+ * reads naturally in all 11 languages instead of being English-only prose.
+ */
+export type CardReason = { template: string; params: Record<string, string> };
+
 export type DailyCard = {
   track: TrackSummary;
-  reason: string; // one bridge sentence — always free
+  reason: CardReason; // one bridge sentence — always free
   date: string;
+  action: DailyCardAction | null;
 };
 export type DailyCardAction = 'more-of-this' | 'get-me-out';
+
+// ---------- Library ----------
+export type FacetOption = { value: string; count: number };
+export type LibraryFacets = {
+  language: FacetOption[];
+  mood: FacetOption[];
+  era: FacetOption[];
+  region: FacetOption[];
+  genre: FacetOption[];
+  tempo: FacetOption[];
+  energy: FacetOption[];
+  rarity: FacetOption[];
+};
+
+// ---------- Playlists ----------
+export type PlaylistSummary = {
+  id: string;
+  name: string;
+  trackCount: number;
+  recommendedCount: number;
+  includesRecommended: boolean;
+  createdAt: string;
+};
+export type CreatePlaylistRequest = {
+  name: string;
+  facets: FacetQuery;
+  includeRecommended?: boolean;
+};
+export type PlaylistQuota = { used: number; limit: number | null };
+
+// ---------- Social (taste only — mood is never shareable) ----------
+export type ShareCode = { code: string };
+export type BridgeTrack = { title: string; artist: string; previewUrl: string | null };
+export type Comparison = {
+  otherName: string;
+  matchPct: number;
+  bridgeTracks: BridgeTrack[];
+  sharedFacets: { facet: string; value: string }[];
+  isFriend: boolean;
+};
+export type FriendSummary = {
+  userId: string;
+  name: string;
+  matchPct: number;
+  since: string;
+};
+
+// ---------- Events ----------
+export type TasteEvent = {
+  id: string;
+  name: string;
+  date: string;
+  venue: string | null;
+  city: string | null;
+  matchedArtist: string | null;
+  reasonTemplate: string;
+  reasonParams: Record<string, string>;
+};
+
+// ---------- Change ----------
+export type ChangePoint = {
+  month: string; // YYYY-MM
+  trackCount: number;
+  topGenre: string | null;
+  topLanguage: string | null;
+  topRegion: string | null;
+};
+export type ChangeSummary = {
+  timeline: ChangePoint[];
+  arrived: { value: string; facet: string; month: string }[];
+  locked: boolean; // free tier sees the last 30 days only
+};
 
 // ---------- Portrait endpoint ----------
 export type PortraitResponse = {

@@ -3,14 +3,16 @@ import { db, sleep } from '../db';
 import { analyze } from '../lib/ml';
 import { resolveTrack } from '../lib/resolve';
 import { eraBucket, energyBucket, moodBucket, rarityBucket, tempoBucket } from '../lib/facets';
+import { refreshItemEmbedding, rebuildUserEmbedding } from '../lib/embedding';
 import { detectFromTitle } from '../lib/language';
-import { rebuildPortrait, rebuildUserEmbedding } from '../lib/portrait';
+import { rebuildPortrait } from '../lib/portrait';
 
 type TrackRow = {
   id: string;
   title: string;
   artist_name: string;
   preview_url: string | null;
+  artwork_url: string | null;
   release_year: number | null;
   deezer_id: string | null;
   has_audio: boolean;
@@ -30,8 +32,8 @@ export async function processScan(job: Job, mbQueue: Queue): Promise<void> {
   if (!trackIds?.length) return;
 
   const tracksRes = await db.query<TrackRow>(
-    `SELECT t.id, t.title, t.artist_name, t.preview_url, t.release_year, t.deezer_id,
-            (ta.track_id IS NOT NULL) AS has_audio
+    `SELECT t.id, t.title, t.artist_name, t.preview_url, t.artwork_url, t.release_year, t.deezer_id,
+            (ta.analyzed AND ta.acoustic IS NOT NULL) AS has_audio
      FROM music.tracks t
      JOIN music.user_tracks ut ON ut.track_id = t.id AND ut.user_id = $1
      LEFT JOIN music.track_audio ta ON ta.track_id = t.id
@@ -99,10 +101,15 @@ async function processTrack(track: TrackRow): Promise<void> {
   let { preview_url, release_year } = track;
   let deezerRank: number | null = null;
   let deezerBpm: number | null = null;
+  let analysisUrl: string | null = null;
 
-  if (!preview_url) {
+  // Resolve whenever anything is still missing, including the analysis: the
+  // URL handed to the analyzer must be fresh, since Deezer links expire and a
+  // stale one silently degrades a real measurement into a placeholder.
+  if (!preview_url || !track.artwork_url || !track.has_audio) {
     const resolved = await resolveTrack(track.title, track.artist_name);
-    preview_url = resolved.previewUrl;
+    preview_url = resolved.previewUrl ?? preview_url;
+    analysisUrl = resolved.analysisUrl;
     release_year = release_year ?? resolved.releaseYear;
     deezerRank = resolved.deezerRank;
     deezerBpm = resolved.deezerBpm;
@@ -112,36 +119,56 @@ async function processTrack(track: TrackRow): Promise<void> {
          preview_url = COALESCE($2, preview_url),
          release_year = COALESCE($3, release_year),
          deezer_id = COALESCE($4, deezer_id),
-         itunes_id = COALESCE($5, itunes_id)
+         itunes_id = COALESCE($5, itunes_id),
+         artwork_url = COALESCE($6, artwork_url)
        WHERE id = $1`,
-      [track.id, resolved.previewUrl, resolved.releaseYear, resolved.deezerId, resolved.itunesId],
+      [
+        track.id,
+        resolved.previewUrl,
+        resolved.releaseYear,
+        resolved.deezerId,
+        resolved.itunesId,
+        resolved.artworkUrl,
+      ],
     );
   }
 
   let tempo: number | null = deezerBpm;
   let energy: number | null = null;
   let valence: number | null = null;
+  // Falls back to the stored URL when nothing was resolved this run.
+  const audioSourceUrl = analysisUrl ?? preview_url;
 
-  if (preview_url && !track.has_audio) {
-    const audio = await analyze(track.id, preview_url);
+  // has_audio means "measured by the current analyzer": rows left by the old
+  // placeholder engine are re-analysed rather than trusted.
+  if (audioSourceUrl && !track.has_audio) {
+    const audio = await analyze(track.id, audioSourceUrl);
     if (audio) {
       tempo = deezerBpm ?? audio.tempo_bpm;
       energy = audio.energy;
       valence = audio.valence;
 
       await db.query(
-        `INSERT INTO music.track_audio (track_id, tempo_bpm, energy, valence, key, mode)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO music.track_audio
+           (track_id, tempo_bpm, energy, valence, key, mode, brightness, dynamism, analyzed, acoustic)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::vector)
          ON CONFLICT (track_id) DO UPDATE SET
            tempo_bpm = EXCLUDED.tempo_bpm, energy = EXCLUDED.energy, valence = EXCLUDED.valence,
-           key = EXCLUDED.key, mode = EXCLUDED.mode, analyzed_at = now()`,
-        [track.id, tempo, energy, valence, audio.key, audio.mode],
-      );
-      await db.query(
-        `INSERT INTO taste.item_embeddings (track_id, embedding)
-         VALUES ($1, $2::vector)
-         ON CONFLICT (track_id) DO UPDATE SET embedding = EXCLUDED.embedding, updated_at = now()`,
-        [track.id, `[${audio.embedding.join(',')}]`],
+           key = EXCLUDED.key, mode = EXCLUDED.mode, brightness = EXCLUDED.brightness,
+           dynamism = EXCLUDED.dynamism, analyzed = EXCLUDED.analyzed,
+           acoustic = EXCLUDED.acoustic, analyzed_at = now()`,
+        [
+          track.id,
+          tempo,
+          energy,
+          valence,
+          audio.key,
+          audio.mode,
+          audio.brightness ?? null,
+          audio.dynamism ?? null,
+          audio.analyzed ?? false,
+          `[${audio.embedding.join(',')}]`,
+        ],
       );
     }
   } else if (track.has_audio) {
@@ -182,4 +209,7 @@ async function processTrack(track: TrackRow): Promise<void> {
       language,
     ],
   );
+
+  // Fuse the towers once the facets for this track are in place.
+  await refreshItemEmbedding(track.id);
 }
