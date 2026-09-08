@@ -10,6 +10,7 @@
     "export:web": "expo export --platform web"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~56.0.4",
     "@musicdude/shared": "*",
     "expo": "~56.0.20",
     "expo-constants": "~56.0.23",

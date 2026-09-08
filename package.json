@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "init-db": "node scripts/init-db.js",
+    "//start": "Default start for a host that runs `npm start` with no configured command (Render web service). The worker must be started with its own command: node apps/worker/dist/index.js",
+    "start": "node apps/api/dist/main.js",
     "build": "npm run build:shared && npm run build -w @musicdude/api && npm run build -w @musicdude/worker",
     "build:shared": "tsc -p packages/shared/tsconfig.json",
     "docker:up": "docker compose -f docker/docker-compose.dev.yml up --build",
