@@ -35,31 +35,11 @@ const mbWorker = new Worker(QUEUES.ENRICH_MUSICBRAINZ, processEnrichMusicbrainz,
   limiter: { max: 1, duration: 1100 },
 });
 
-// Phase 2.5+ queues: registered so the topology is fixed, processors land later.
-const stubs: Record<string, (job: Job) => Promise<void>> = {
-  [QUEUES.ENRICH_PREVIEW]: async (job) => {
-    console.log(`[enrich-preview] track=${job.data.trackId} — folded into scan for now`);
-  },
-  [QUEUES.BUILD_FACETS]: async (job) => {
-    console.log(`[build-facets] user=${job.data.userId} — folded into scan for now`);
-  },
-  [QUEUES.PORTRAIT_REBUILD]: async (job) => {
-    console.log(`[portrait-rebuild] user=${job.data.userId} — folded into scan for now`);
-  },
-  [QUEUES.DAILY_CARD]: async () => {
-    console.log('[daily-card] not implemented yet');
-  },
-  [QUEUES.CARE_NOW]: async (job) => {
-    console.log(`[care-now] user=${job.data.userId} — not implemented yet`);
-  },
-};
-
-const stubWorkers = Object.entries(stubs).map(
-  ([queue, processor]) => new Worker(queue, processor, { connection, concurrency: 5 }),
-);
-
-for (const w of [scanWorker, mbWorker, ...stubWorkers]) {
+// Only queues with real processors get a Worker: every idle Worker holds Redis
+// connections, and the free plan allows 30. The remaining queue names live in
+// ./queues.ts and get workers when their processors are written.
+for (const w of [scanWorker, mbWorker]) {
   w.on('failed', (job, err) => console.error(`[${w.name}] job ${job?.id} failed:`, err.message));
 }
 
-console.log('musicdude worker up — scan + musicbrainz live, rest stubbed');
+console.log(`musicdude worker up — queues: ${QUEUES.SCAN}, ${QUEUES.ENRICH_MUSICBRAINZ}`);
