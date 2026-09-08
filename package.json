@@ -15,10 +15,12 @@
     "docker:infra": "docker compose -f docker/docker-compose.dev.yml up -d db redis ml",
     "api:dev": "cd apps/api && npx prisma generate && npm run start:dev",
     "worker:dev": "npm run dev -w @musicdude/worker",
+    "ml:dev": "cd apps/ml-service && python -m uvicorn main:app --port 8000 --reload",
     "mobile:start": "npm run start -w @musicdude/mobile"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
+    "dotenv": "^16.4.5",
     "pg": "^8.11.0",
     "typescript": "~5.9.2"
   },

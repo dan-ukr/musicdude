@@ -1,3 +1,9 @@
+// Local dev reads the repo-root .env (same file the API uses); on Render the
+// dashboard supplies the vars and this is a no-op. Must run before ./queues.
+import * as path from 'node:path';
+import * as dotenv from 'dotenv';
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+
 import { Queue, Worker, type Job } from 'bullmq';
 import { QUEUES, REDIS_URL } from './queues';
 import { processScan } from './jobs/scan';

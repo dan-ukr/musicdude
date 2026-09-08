@@ -11,7 +11,9 @@ import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // '../../.env' is the repo root: one .env for api + worker in local dev.
+    // On Render the dashboard supplies the vars and both paths are simply absent.
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '../../.env'] }),
     DatabaseModule,
     QueueModule,
     AuthModule,
