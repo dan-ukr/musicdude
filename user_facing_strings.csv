@@ -52,3 +52,39 @@ phrase,source
 "Languages",portrait.tsx – distribution card
 "Moods",portrait.tsx – distribution card
 "Tracks",portrait.tsx – count card
+"Unknown",facetLabels.ts – honest bucket for every facet
+"Energetic",facetLabels.ts – mood
+"Calm",facetLabels.ts – mood
+"Melancholic",facetLabels.ts – mood
+"Euphoric",facetLabels.ts – mood
+"Dark",facetLabels.ts – mood
+"Warm",facetLabels.ts – mood
+"Before 1970",facetLabels.ts – era
+"1970s",facetLabels.ts – era
+"1980s",facetLabels.ts – era
+"1990s",facetLabels.ts – era
+"2000s",facetLabels.ts – era
+"2010s",facetLabels.ts – era
+"2020s",facetLabels.ts – era
+"Western Europe",facetLabels.ts – region
+"Eastern Europe",facetLabels.ts – region
+"North America",facetLabels.ts – region
+"Latin America",facetLabels.ts – region
+"Africa",facetLabels.ts – region
+"Middle East",facetLabels.ts – region
+"Asia",facetLabels.ts – region
+"Oceania",facetLabels.ts – region
+"Slow",facetLabels.ts – tempo
+"Mid-tempo",facetLabels.ts – tempo
+"Fast",facetLabels.ts – tempo
+"Low energy",facetLabels.ts – energy
+"Mid energy",facetLabels.ts – energy
+"High energy",facetLabels.ts – energy
+"Mainstream",facetLabels.ts – rarity
+"Known",facetLabels.ts – rarity
+"Niche",facetLabels.ts – rarity
+"Rare",facetLabels.ts – rarity
+"Genres",portrait.tsx – distribution card (genre names themselves untranslated by convention; language names via Intl.DisplayNames)
+"Connect Spotify",import-music.tsx / connect-spotify.tsx – primary connector
+"Log in to Spotify and your Liked Songs will import automatically.",connect-spotify.tsx – hint above webview
+"Importing your Liked Songs…",connect-spotify.tsx – progress state

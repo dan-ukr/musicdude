@@ -11,7 +11,7 @@ export type LoginRequest = { email: string; password: string };
 export type AuthResponse = { accessToken: string };
 
 // ---------- Library / import ----------
-export type ImportSource = 'search' | 'playlist-link' | 'gdpr-export' | 'demo';
+export type ImportSource = 'search' | 'playlist-link' | 'gdpr-export' | 'demo' | 'spotify-liked';
 
 export type ImportedTrack = {
   title: string;
@@ -61,6 +61,7 @@ export type PortraitPayload = {
   regionDistribution: Record<string, number>;
   languageDistribution: Record<string, number>;
   moodDistribution: Record<string, number>;
+  genreDistribution: Record<string, number>;
   trackCount: number;
   generatedAt: string;
 };

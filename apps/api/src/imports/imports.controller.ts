@@ -23,8 +23,8 @@ class ImportedTrackDto {
 }
 
 class StartImportDto {
-  @IsIn(['search', 'playlist-link', 'gdpr-export', 'demo'])
-  source!: 'search' | 'playlist-link' | 'gdpr-export' | 'demo';
+  @IsIn(['search', 'playlist-link', 'gdpr-export', 'demo', 'spotify-liked'])
+  source!: 'search' | 'playlist-link' | 'gdpr-export' | 'demo' | 'spotify-liked';
 
   @IsArray()
   @ValidateNested({ each: true })

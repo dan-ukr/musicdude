@@ -5,12 +5,24 @@ import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PortraitResponse } from '@musicdude/shared';
 import { api } from '../../src/api/client';
-import { useT } from '../../src/i18n/LanguageContext';
+import { facetValueLabel } from '../../src/i18n/facetLabels';
+import { useLanguage, useT } from '../../src/i18n/LanguageContext';
 import { C } from '../../src/theme/colors';
 
 const POLL_MS = 3000;
 
-function DistributionCard({ title, data }: { title: string; data: Record<string, number> }) {
+type FacetKind = 'mood' | 'era' | 'region' | 'language' | 'genre';
+
+function DistributionCard({
+  title,
+  kind,
+  data,
+}: {
+  title: string;
+  kind: FacetKind;
+  data: Record<string, number>;
+}) {
+  const { lang, t } = useLanguage();
   const entries = Object.entries(data)
     .filter(([k]) => k !== 'unknown')
     .sort((a, b) => b[1] - a[1])
@@ -22,10 +34,10 @@ function DistributionCard({ title, data }: { title: string; data: Record<string,
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
-      {entries.map(([label, count]) => (
-        <View key={label} style={styles.barRow}>
+      {entries.map(([value, count]) => (
+        <View key={value} style={styles.barRow}>
           <Text style={styles.barLabel} numberOfLines={1}>
-            {label}
+            {t(facetValueLabel(kind, value, lang))}
           </Text>
           <View style={styles.barTrack}>
             <View style={[styles.barFill, { width: `${Math.round((count / total) * 100)}%` }]} />
@@ -35,7 +47,7 @@ function DistributionCard({ title, data }: { title: string; data: Record<string,
       ))}
       {unknown > 0 ? (
         <Text style={styles.unknownNote}>
-          unknown · {unknown}
+          {t('Unknown')} · {unknown}
         </Text>
       ) : null}
     </View>
@@ -115,10 +127,15 @@ export default function Portrait() {
               <Text style={styles.cardTitle}>{t('Tracks')}</Text>
               <Text style={styles.bigNumber}>{portrait.trackCount}</Text>
             </View>
-            <DistributionCard title={t('Eras')} data={portrait.eraDistribution} />
-            <DistributionCard title={t('Moods')} data={portrait.moodDistribution} />
-            <DistributionCard title={t('Regions')} data={portrait.regionDistribution} />
-            <DistributionCard title={t('Languages')} data={portrait.languageDistribution} />
+            <DistributionCard title={t('Genres')} kind="genre" data={portrait.genreDistribution ?? {}} />
+            <DistributionCard title={t('Eras')} kind="era" data={portrait.eraDistribution} />
+            <DistributionCard title={t('Moods')} kind="mood" data={portrait.moodDistribution} />
+            <DistributionCard title={t('Regions')} kind="region" data={portrait.regionDistribution} />
+            <DistributionCard
+              title={t('Languages')}
+              kind="language"
+              data={portrait.languageDistribution}
+            />
           </>
         ) : !scanning ? (
           <View style={styles.card}>

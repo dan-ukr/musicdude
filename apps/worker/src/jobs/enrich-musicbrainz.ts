@@ -1,4 +1,5 @@
 import type { Job } from 'bullmq';
+import { GENRE_SET, LANGUAGE_TAG_MAP } from '@musicdude/shared';
 import { db } from '../db';
 import { regionFromCountry } from '../lib/facets';
 import { rebuildPortrait } from '../lib/portrait';
@@ -6,31 +7,48 @@ import { rebuildPortrait } from '../lib/portrait';
 const MB_BASE = process.env.MUSICBRAINZ_BASE_URL ?? 'https://musicbrainz.org/ws/2';
 const USER_AGENT = 'MusicDude/0.1.0 (contact@musicdude.app)';
 const MIN_SCORE = 85;
+const MAX_GENRES = 5;
 
+type MbTag = { name: string; count: number };
 type MbArtist = {
   id: string;
   name: string;
   score: number;
   country?: string;
   'life-span'?: { begin?: string };
-  tags?: { name: string; count: number }[];
+  tags?: MbTag[];
 };
 
+/** Tags are human-curated: mapping them is reading, not guessing. */
+function deriveFromTags(tags: MbTag[]): { genres: string[]; language: string | null } {
+  const sorted = [...tags].sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
+  const genres: string[] = [];
+  let language: string | null = null;
+  for (const tag of sorted) {
+    const name = tag.name.toLowerCase().trim();
+    if (genres.length < MAX_GENRES && GENRE_SET.has(name)) genres.push(name);
+    if (!language && LANGUAGE_TAG_MAP[name]) language = LANGUAGE_TAG_MAP[name];
+  }
+  return { genres, language };
+}
+
 /**
- * Artist-level cultural enrichment. The queue's limiter enforces 1 req/1.1s
- * (musicbrainz.org allows ~1 req/s per app). Already-enriched artists skip the API.
+ * Artist-level cultural enrichment: country -> region, tags -> genres + language.
+ * The queue's limiter enforces 1 req/1.1s (musicbrainz.org allows ~1 req/s per app).
+ * Already-enriched artists skip the API and reuse stored data.
  */
 export async function processEnrichMusicbrainz(job: Job): Promise<void> {
   const { artistName, userId } = job.data as { artistName: string; userId: string };
 
-  const existing = await db.query<{ country: string | null }>(
-    `SELECT country FROM music.artists WHERE lower(name) = lower($1) AND country IS NOT NULL LIMIT 1`,
+  const existing = await db.query<{ country: string | null; tags: MbTag[] | string[] }>(
+    `SELECT country, tags FROM music.artists WHERE lower(name) = lower($1) LIMIT 1`,
     [artistName],
   );
 
   let country: string | null = existing.rows[0]?.country ?? null;
+  let tags: MbTag[] = normalizeStoredTags(existing.rows[0]?.tags);
 
-  if (!country) {
+  if (existing.rows.length === 0) {
     const url = `${MB_BASE}/artist/?query=artist:${encodeURIComponent(`"${artistName}"`)}&fmt=json&limit=1`;
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
     if (!res.ok) {
@@ -42,8 +60,8 @@ export async function processEnrichMusicbrainz(job: Job): Promise<void> {
     if (!hit || hit.score < MIN_SCORE) return; // honest unknown: never guess
 
     country = hit.country ?? null;
+    tags = hit.tags ?? [];
     const beginYear = hit['life-span']?.begin ? Number(hit['life-span'].begin.slice(0, 4)) || null : null;
-    const tags = (hit.tags ?? []).slice(0, 10).map((t) => t.name);
 
     await db.query(
       `INSERT INTO music.artists (name, mbid, country, begin_year, tags)
@@ -55,13 +73,32 @@ export async function processEnrichMusicbrainz(job: Job): Promise<void> {
   }
 
   const region = regionFromCountry(country);
-  if (region !== 'unknown') {
-    await db.query(
-      `UPDATE music.track_facets tf SET region = $1, updated_at = now()
-       FROM music.tracks t
-       WHERE t.id = tf.track_id AND lower(t.artist_name) = lower($2)`,
-      [region, artistName],
-    );
-    await rebuildPortrait(userId);
-  }
+  const { genres, language } = deriveFromTags(tags);
+
+  if (region === 'unknown' && genres.length === 0 && !language) return;
+
+  await db.query(
+    `UPDATE music.track_facets tf SET
+       region = CASE WHEN $1 <> 'unknown' THEN $1 ELSE tf.region END,
+       language = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE tf.language END,
+       genres = CASE WHEN cardinality($3::text[]) > 0 THEN $3::text[] ELSE tf.genres END,
+       updated_at = now()
+     FROM music.tracks t
+     WHERE t.id = tf.track_id AND lower(t.artist_name) = lower($4)`,
+    [region, language, genres, artistName],
+  );
+  await rebuildPortrait(userId);
+}
+
+function normalizeStoredTags(raw: unknown): MbTag[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((t) =>
+      typeof t === 'string'
+        ? { name: t, count: 1 }
+        : (t as MbTag)?.name
+          ? { name: (t as MbTag).name, count: (t as MbTag).count ?? 1 }
+          : null,
+    )
+    .filter((t): t is MbTag => t !== null);
 }

@@ -78,6 +78,10 @@ export default function ImportMusic() {
     <SafeAreaView style={styles.screen}>
       <Text style={styles.heading}>{t('Import music')}</Text>
 
+      <Pressable style={styles.spotify} onPress={() => router.push('/connect-spotify')}>
+        <Text style={styles.spotifyText}>{t('Connect Spotify')}</Text>
+      </Pressable>
+
       <TextInput
         style={styles.input}
         placeholder={t('Search songs or artists')}
@@ -148,6 +152,14 @@ export default function ImportMusic() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.BG, padding: 24 },
   heading: { color: C.INK, fontSize: 28, fontWeight: '800', marginBottom: 16 },
+  spotify: {
+    backgroundColor: '#1DB954',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  spotifyText: { color: '#000000', fontSize: 16, fontWeight: '700' },
   input: {
     backgroundColor: C.INPUT_BG,
     borderWidth: 1,

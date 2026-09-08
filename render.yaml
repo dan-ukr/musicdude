@@ -1,0 +1,91 @@
+# Render Blueprint — create everything from this file:
+#   Render dashboard → New → Blueprint → pick the musicdude repo.
+#
+# Root Directory stays EMPTY for the Node services (they are npm workspaces and
+# need the repo root). The root `build` script compiles packages/shared FIRST —
+# `npm run build --workspaces` would run api before shared and fail with
+# "Cannot find module '@musicdude/shared'".
+#
+# After the first deploy, initialize the database schema once from your machine
+# using the database's EXTERNAL connection string:
+#   DATABASE_URL="<external-url>" npm run init-db
+#
+# ML_BASE_URL is prompted at blueprint creation (sync: false). Enter the ML
+# service URL: https://musicdude-ml.onrender.com
+
+services:
+  - type: web
+    name: musicdude-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: cd apps/api && npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        value: "*"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: musicdude-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: musicdude-redis
+          type: keyvalue
+          property: connectionString
+      - key: ML_BASE_URL
+        sync: false
+
+  # Background workers have no free plan — this is the one unavoidable cost.
+  - type: worker
+    name: musicdude-worker
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm install && npm run build
+    startCommand: node apps/worker/dist/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: musicdude-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: musicdude-redis
+          type: keyvalue
+          property: connectionString
+      - key: ML_BASE_URL
+        sync: false
+
+  - type: web
+    name: musicdude-ml
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerContext: ./apps/ml-service
+    dockerfilePath: ./apps/ml-service/Dockerfile
+    healthCheckPath: /health
+
+  # BullMQ requires noeviction: with an eviction policy, queued jobs vanish silently.
+  - type: keyvalue
+    name: musicdude-redis
+    plan: free
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+databases:
+  # Render's free Postgres EXPIRES after 30 days. basic-256mb is $6/mo.
+  # Alternative: keep a free Supabase project and set DATABASE_URL manually
+  # (use its Session/Transaction pooler URI — the direct host is IPv6-only).
+  - name: musicdude-db
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"

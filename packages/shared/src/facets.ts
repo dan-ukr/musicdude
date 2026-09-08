@@ -63,6 +63,8 @@ export type TrackFacets = {
   tempo: TempoBucket;
   energy: EnergyBucket;
   rarity: RarityBucket;
+  /** Canonical MusicBrainz genres (see genres.ts); multi-valued, [] = unknown. */
+  genres: string[];
 };
 
-export type FacetQuery = Partial<Omit<TrackFacets, 'trackId'>>;
+export type FacetQuery = Partial<Omit<TrackFacets, 'trackId' | 'genres'>> & { genre?: string };

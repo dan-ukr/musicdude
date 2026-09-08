@@ -21,6 +21,18 @@ export async function rebuildPortrait(userId: string): Promise<void> {
     [userId],
   );
 
+  const genreRes = await db.query<{ value: string; count: string }>(
+    `SELECT g.value, count(*)::text AS count
+     FROM music.user_tracks ut
+     JOIN music.track_facets tf ON tf.track_id = ut.track_id
+     CROSS JOIN LATERAL unnest(tf.genres) AS g(value)
+     WHERE ut.user_id = $1
+     GROUP BY g.value
+     ORDER BY count(*) DESC
+     LIMIT 25`,
+    [userId],
+  );
+
   const dist = (facet: string): Record<string, number> =>
     Object.fromEntries(
       res.rows.filter((r) => r.facet === facet).map((r) => [r.value, Number(r.count)]),
@@ -32,6 +44,7 @@ export async function rebuildPortrait(userId: string): Promise<void> {
     regionDistribution: dist('region'),
     languageDistribution: dist('language'),
     moodDistribution: dist('mood'),
+    genreDistribution: Object.fromEntries(genreRes.rows.map((r) => [r.value, Number(r.count)])),
     trackCount: Number(trackCountRes.rows[0]?.count ?? 0),
     generatedAt: new Date().toISOString(),
   };
