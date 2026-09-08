@@ -6,12 +6,17 @@
 # `npm run build --workspaces` would run api before shared and fail with
 # "Cannot find module '@musicdude/shared'".
 #
-# After the first deploy, initialize the database schema once from your machine
-# using the database's EXTERNAL connection string:
-#   DATABASE_URL="<external-url>" npm run init-db
+# The repo is PUBLIC: no secret is ever committed here. Every `sync: false` var
+# is entered in the Render dashboard and stored only there.
 #
-# ML_BASE_URL is prompted at blueprint creation (sync: false). Enter the ML
-# service URL: https://musicdude-ml.onrender.com
+# Values you are prompted for at blueprint creation:
+#   DATABASE_URL  Supabase SESSION POOLER URI (host aws-0-<region>.pooler.supabase.com,
+#                 user postgres.<project-ref>, port 5432). NOT db.<ref>.supabase.co —
+#                 that host publishes no A record, so Render cannot reach it.
+#   ML_BASE_URL   https://musicdude-ml.onrender.com
+#
+# Initialize the schema once from your machine (same pooler URI in a local .env):
+#   npm run init-db
 
 services:
   - type: web
@@ -30,9 +35,7 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         value: "*"
       - key: DATABASE_URL
-        fromDatabase:
-          name: musicdude-db
-          property: connectionString
+        sync: false
       - key: REDIS_URL
         fromService:
           name: musicdude-redis
@@ -53,9 +56,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase:
-          name: musicdude-db
-          property: connectionString
+        sync: false
       - key: REDIS_URL
         fromService:
           name: musicdude-redis
@@ -74,6 +75,8 @@ services:
     healthCheckPath: /health
 
   # BullMQ requires noeviction: with an eviction policy, queued jobs vanish silently.
+  # ipAllowList: [] is internal-only — add your IP in Access Control to reach it
+  # from your laptop, or use a free Upstash database and set REDIS_URL by hand.
   - type: keyvalue
     name: musicdude-redis
     plan: free
@@ -81,11 +84,5 @@ services:
     maxmemoryPolicy: noeviction
     ipAllowList: []
 
-databases:
-  # Render's free Postgres EXPIRES after 30 days. basic-256mb is $6/mo.
-  # Alternative: keep a free Supabase project and set DATABASE_URL manually
-  # (use its Session/Transaction pooler URI — the direct host is IPv6-only).
-  - name: musicdude-db
-    plan: basic-256mb
-    region: frankfurt
-    postgresMajorVersion: "16"
+# No `databases:` block: Postgres lives on Supabase (free, pgvector preinstalled,
+# no 30-day expiry), reached through DATABASE_URL above.
