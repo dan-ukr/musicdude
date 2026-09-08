@@ -49,6 +49,9 @@ export const LANGUAGE_TAG_MAP: Readonly<Record<string, string>> = {
   tagalog: 'tl', filipino: 'tl', burmese: 'my', khmer: 'km', lao: 'lo',
   swahili: 'sw', hausa: 'ha', yoruba: 'yo', igbo: 'ig', zulu: 'zu', xhosa: 'xh',
   afrikaans: 'af', somali: 'so', wolof: 'wo', lingala: 'ln', kinyarwanda: 'rw',
-  malagasy: 'mg', shona: 'sn', esperanto: 'eo', latin: 'la',
+  malagasy: 'mg', shona: 'sn', esperanto: 'eo',
   'english-language': 'en',
+  // Deliberately absent: 'latin'. As a tag it means Latin *music* (a genre in
+  // GENRE_SET), not the Latin language, and mapping it labelled reggaeton
+  // tracks as Latin-language.
 };

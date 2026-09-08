@@ -3,6 +3,7 @@ import { db, sleep } from '../db';
 import { analyze } from '../lib/ml';
 import { resolveTrack } from '../lib/resolve';
 import { eraBucket, energyBucket, moodBucket, rarityBucket, tempoBucket } from '../lib/facets';
+import { detectFromTitle } from '../lib/language';
 import { rebuildPortrait, rebuildUserEmbedding } from '../lib/portrait';
 
 type TrackRow = {
@@ -16,6 +17,8 @@ type TrackRow = {
 };
 
 const PORTRAIT_REBUILD_EVERY = 25;
+/** Artists per MusicBrainz request — its query takes OR-joined names. */
+const ENRICH_CHUNK = 20;
 
 /**
  * Full-library scan: resolve -> analyze -> facets -> embeddings, with
@@ -72,15 +75,24 @@ export async function processScan(job: Job, mbQueue: Queue): Promise<void> {
     throw err;
   }
 
-  // Cultural graph enrichment trickles behind (1 req/s limiter on the MB queue).
-  // jobId dedupes an artist already queued; an already-enriched artist is skipped in the processor.
-  for (const artist of artists) {
-    await mbQueue.add(
-      'enrich',
-      { artistName: artist, userId },
-      { jobId: `mb:${artist.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 80)}` },
-    );
+  // Cultural graph enrichment trickles behind the rate limiter. Artists are sent
+  // in chunks because one MusicBrainz query covers many names — per-artist
+  // requests exhausted the ~1 req/s budget on a single import.
+  // Failures here must not fail the scan: facets and portrait are already committed.
+  const chunks = chunk([...artists], ENRICH_CHUNK);
+  for (const artistNames of chunks) {
+    try {
+      await mbQueue.add('enrich', { artistNames, userId });
+    } catch (err) {
+      console.error(`[scan] could not queue enrichment: ${(err as Error).message}`);
+    }
   }
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
 }
 
 async function processTrack(track: TrackRow): Promise<void> {
@@ -145,14 +157,21 @@ async function processTrack(track: TrackRow): Promise<void> {
     }
   }
 
-  // Region and language belong to MusicBrainz enrichment — never touched here,
-  // so a rescan can't reset them to unknown.
+  // The title's writing system settles the language for free when it points at
+  // exactly one (Hangul, Greek, ў…); shared scripts wait for the artist's
+  // country in enrichment. Region is only ever written there, and language is
+  // preserved on rescan, so neither can be reset to unknown here.
+  const detection = detectFromTitle(track.title);
+  const language = detection && 'code' in detection ? detection.code : null;
+
   await db.query(
-    `INSERT INTO music.track_facets (track_id, era, tempo, energy, mood, rarity)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO music.track_facets (track_id, era, tempo, energy, mood, rarity, language)
+     VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'unknown'))
      ON CONFLICT (track_id) DO UPDATE SET
        era = EXCLUDED.era, tempo = EXCLUDED.tempo, energy = EXCLUDED.energy,
-       mood = EXCLUDED.mood, rarity = EXCLUDED.rarity, updated_at = now()`,
+       mood = EXCLUDED.mood, rarity = EXCLUDED.rarity,
+       language = CASE WHEN $7::text IS NOT NULL THEN $7 ELSE track_facets.language END,
+       updated_at = now()`,
     [
       track.id,
       eraBucket(release_year),
@@ -160,6 +179,7 @@ async function processTrack(track: TrackRow): Promise<void> {
       energyBucket(energy),
       moodBucket(energy, valence),
       rarityBucket(deezerRank),
+      language,
     ],
   );
 }

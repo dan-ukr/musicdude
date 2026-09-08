@@ -28,12 +28,16 @@ const scanWorker = new Worker(QUEUES.SCAN, (job: Job) => processScan(job, mbQueu
   concurrency: 2,
 });
 
-const mbWorker = new Worker(QUEUES.ENRICH_MUSICBRAINZ, processEnrichMusicbrainz, {
-  connection,
-  concurrency: 1,
-  // musicbrainz.org: ~1 req/s per app. The limiter is the whole point.
-  limiter: { max: 1, duration: 1100 },
-});
+// musicbrainz.org allows ~1 req/s per client and there are no API keys to
+// rotate, so the limiter plus batching is the entire strategy. 1.3s leaves
+// headroom for the burst detection that produced 503s at 1.1s; a 503 still
+// pauses the queue for its Retry-After via RateLimitError in the processor.
+// Self-hosting a mirror (MUSICBRAINZ_BASE_URL) is the only way past the limit.
+const mbWorker: Worker = new Worker(
+  QUEUES.ENRICH_MUSICBRAINZ,
+  (job: Job) => processEnrichMusicbrainz(job, mbWorker),
+  { connection, concurrency: 1, limiter: { max: 1, duration: 1300 } },
+);
 
 // Only queues with real processors get a Worker: every idle Worker holds Redis
 // connections, and the free plan allows 30. The remaining queue names live in
