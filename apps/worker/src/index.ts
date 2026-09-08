@@ -11,7 +11,17 @@ import { processEnrichMusicbrainz } from './jobs/enrich-musicbrainz';
 
 const connection = { url: REDIS_URL };
 
-const mbQueue = new Queue(QUEUES.ENRICH_MUSICBRAINZ, { connection });
+// attempts > 1 is what makes the 503 throw in the processor an actual retry;
+// removeOn* keeps thousands of artist jobs from filling a small Redis plan.
+const mbQueue = new Queue(QUEUES.ENRICH_MUSICBRAINZ, {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 5_000 },
+    removeOnComplete: 100,
+    removeOnFail: 200,
+  },
+});
 
 const scanWorker = new Worker(QUEUES.SCAN, (job: Job) => processScan(job, mbQueue), {
   connection,

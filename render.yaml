@@ -13,6 +13,8 @@
 #   DATABASE_URL  Supabase SESSION POOLER URI (host aws-0-<region>.pooler.supabase.com,
 #                 user postgres.<project-ref>, port 5432). NOT db.<ref>.supabase.co —
 #                 that host publishes no A record, so Render cannot reach it.
+#   REDIS_URL     Redis Cloud free tier (redis://default:<password>@<host>:<port>).
+#                 One instance serves both local dev and Render.
 #   ML_BASE_URL   https://musicdude-ml.onrender.com
 #
 # Initialize the schema once from your machine (same pooler URI in a local .env):
@@ -37,10 +39,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
-        fromService:
-          name: musicdude-redis
-          type: keyvalue
-          property: connectionString
+        sync: false
       - key: ML_BASE_URL
         sync: false
 
@@ -58,10 +57,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
-        fromService:
-          name: musicdude-redis
-          type: keyvalue
-          property: connectionString
+        sync: false
       - key: ML_BASE_URL
         sync: false
 
@@ -74,15 +70,11 @@ services:
     dockerfilePath: ./apps/ml-service/Dockerfile
     healthCheckPath: /health
 
-  # BullMQ requires noeviction: with an eviction policy, queued jobs vanish silently.
-  # ipAllowList: [] is internal-only — add your IP in Access Control to reach it
-  # from your laptop, or use a free Upstash database and set REDIS_URL by hand.
-  - type: keyvalue
-    name: musicdude-redis
-    plan: free
-    region: frankfurt
-    maxmemoryPolicy: noeviction
-    ipAllowList: []
-
-# No `databases:` block: Postgres lives on Supabase (free, pgvector preinstalled,
-# no 30-day expiry), reached through DATABASE_URL above.
+# No `databases:` block and no Key Value service: Postgres lives on Supabase
+# (free, pgvector preinstalled, no 30-day expiry) and Redis on Redis Cloud's free
+# tier — both reachable from a laptop as well as from Render, so local dev and
+# production share one set of backing services.
+#
+# If you ever move Redis onto Render (free Key Value, 25MB), note its default
+# ipAllowList is internal-only and BullMQ needs maxmemoryPolicy: noeviction —
+# with eviction enabled, queued jobs disappear silently.
