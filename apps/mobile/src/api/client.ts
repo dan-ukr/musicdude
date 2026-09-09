@@ -20,7 +20,17 @@ import type {
 } from '@musicdude/shared';
 import { AUTH_TOKEN_KEY, storage } from '../utils/storage';
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+/**
+ * In a browser the API is derived from the address the page was opened with,
+ * so it follows localhost or a LAN IP automatically. A hard-coded LAN address
+ * breaks silently every time the machine's IP changes: the app still renders
+ * and every request quietly times out. Native builds have no page address, so
+ * they use the configured value.
+ */
+const BASE_URL =
+  typeof window !== 'undefined' && window.location?.hostname
+    ? `${window.location.protocol}//${window.location.hostname}:3000`
+    : (process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000');
 
 export class ApiError extends Error {
   constructor(
