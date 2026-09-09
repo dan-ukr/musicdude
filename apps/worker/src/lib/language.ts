@@ -8,6 +8,8 @@
  * Anything else stays unknown — an honest gap keeps every other facet trustworthy.
  */
 
+import { COUNTRY_MAIN_LANGUAGE } from '@musicdude/shared';
+
 export type Detection =
   | { code: string }
   | { ambiguous: AmbiguousScript }
@@ -96,6 +98,7 @@ export function resolveLanguage(
   title: string,
   countryCode: string | null,
   artistLanguages: string[] = [],
+  allowCountryFallback = false,
 ): string | null {
   const detection = detectFromTitle(title);
 
@@ -113,5 +116,11 @@ export function resolveLanguage(
   // Latin script with no distinctive letters (an English title looks identical
   // to a Spanish one). Only a single unambiguous artist language counts here.
   if (artistLanguages.length === 1) return artistLanguages[0];
+
+  // Everything else exhausted: the main language of the artist's country. This
+  // runs last on purpose — ahead of the lyrics it would call ABBA Swedish.
+  if (allowCountryFallback && countryCode) {
+    return COUNTRY_MAIN_LANGUAGE[countryCode.toUpperCase()] ?? null;
+  }
   return null;
 }

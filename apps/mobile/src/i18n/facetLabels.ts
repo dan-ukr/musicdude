@@ -69,6 +69,8 @@ const BY_KIND: Partial<Record<FacetKind, Record<string, string>>> = {
  * no manual translation table to maintain. Falls back to the uppercased code.
  */
 function languageName(code: string, uiLang: string): string {
+  // Not a language code: a recording with no words, which is its own answer.
+  if (code === 'instrumental') return 'Instrumental';
   try {
     const name = new Intl.DisplayNames([uiLang], { type: 'language' }).of(code);
     if (name && name !== code) return name;

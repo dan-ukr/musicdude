@@ -5,6 +5,7 @@ import { resolveTrack } from '../lib/resolve';
 import { eraBucket, energyBucket, moodBucket, rarityBucket, tempoBucket } from '../lib/facets';
 import { refreshItemEmbedding, rebuildUserEmbedding } from '../lib/embedding';
 import { detectFromTitle } from '../lib/language';
+import { languageFromLyrics } from '../lib/lyrics';
 import { rebuildPortrait } from '../lib/portrait';
 
 type TrackRow = {
@@ -184,12 +185,22 @@ async function processTrack(track: TrackRow): Promise<void> {
     }
   }
 
-  // The title's writing system settles the language for free when it points at
-  // exactly one (Hangul, Greek, ў…); shared scripts wait for the artist's
-  // country in enrichment. Region is only ever written there, and language is
-  // preserved on rescan, so neither can be reset to unknown here.
+  // Language of the recording, strongest evidence first:
+  //   1. its lyrics — the only source that describes the song rather than the
+  //      artist, so a Swedish band singing in English reads as English
+  //   2. no words at all -> 'instrumental', an answer rather than a gap
+  //   3. the title's writing system, when it points at exactly one language
+  // Anything still open is left for enrichment, which never overwrites this.
+  const fromLyrics = await languageFromLyrics(track.title, track.artist_name);
   const detection = detectFromTitle(track.title);
-  const language = detection && 'code' in detection ? detection.code : null;
+  const language =
+    fromLyrics?.kind === 'instrumental'
+      ? 'instrumental'
+      : fromLyrics?.kind === 'language'
+        ? fromLyrics.code
+        : detection && 'code' in detection
+          ? detection.code
+          : null;
 
   await db.query(
     `INSERT INTO music.track_facets (track_id, era, tempo, energy, mood, rarity, language)

@@ -27,6 +27,39 @@ export const MUSIC_LANGUAGES: readonly string[] = [
 export const MUSIC_LANGUAGE_SET: ReadonlySet<string> = new Set(MUSIC_LANGUAGES);
 
 /**
+ * A recording with no words is not a gap in the data — it is an answer, and a
+ * filterable one. Distinct from 'unknown', which means we could not tell.
+ */
+export const INSTRUMENTAL = 'instrumental' as const;
+
+/**
+ * Last-resort language for a recording: the main language of the artist's
+ * country. Only consulted when the lyrics, the writing system and the artist's
+ * documented languages all came up empty — using it earlier is what made ABBA
+ * look Swedish when they sing in English.
+ */
+export const COUNTRY_MAIN_LANGUAGE: Readonly<Record<string, string>> = {
+  UA: 'uk', BY: 'be', RU: 'ru', PL: 'pl', CZ: 'cs', SK: 'sk', HU: 'hu', RO: 'ro',
+  BG: 'bg', HR: 'hr', RS: 'sr', BA: 'bs', SI: 'sl', MK: 'mk', AL: 'sq', GR: 'el',
+  DE: 'de', AT: 'de', CH: 'de', FR: 'fr', BE: 'nl', NL: 'nl', LU: 'fr',
+  IT: 'it', ES: 'es', PT: 'pt', TR: 'tr', EE: 'et', LV: 'lv', LT: 'lt',
+  FI: 'fi', SE: 'sv', NO: 'no', DK: 'da', IS: 'is', MT: 'mt', CY: 'el',
+  GB: 'en', IE: 'en', US: 'en', CA: 'en', AU: 'en', NZ: 'en', ZA: 'en',
+  NG: 'en', GH: 'en', KE: 'sw', TZ: 'sw', UG: 'en', ZW: 'en',
+  MX: 'es', AR: 'es', CL: 'es', CO: 'es', PE: 'es', UY: 'es', VE: 'es',
+  EC: 'es', BO: 'es', PY: 'es', CU: 'es', DO: 'es', PR: 'es', CR: 'es',
+  BR: 'pt', AO: 'pt', MZ: 'pt', JM: 'en',
+  JP: 'ja', KR: 'ko', CN: 'zh', TW: 'zh', HK: 'zh', SG: 'en', TH: 'th',
+  VN: 'vi', ID: 'id', MY: 'ms', PH: 'tl', MM: 'my', KH: 'km', LA: 'lo',
+  IN: 'hi', PK: 'ur', BD: 'bn', NP: 'ne', LK: 'si',
+  IL: 'he', SA: 'ar', AE: 'ar', EG: 'ar', MA: 'ar', DZ: 'ar', TN: 'ar',
+  LB: 'ar', IQ: 'ar', JO: 'ar', SY: 'ar', KW: 'ar', LY: 'ar', SD: 'ar', YE: 'ar',
+  IR: 'fa', AF: 'fa', GE: 'ka', AM: 'hy', AZ: 'az', KZ: 'kk', KG: 'ky',
+  UZ: 'uz', TJ: 'tg', TM: 'tk', MN: 'mn', ET: 'am', SN: 'wo', ML: 'fr',
+  CD: 'ln', RW: 'rw', MG: 'mg', SO: 'so',
+};
+
+/**
  * MusicBrainz/folksonomy tag -> language code. Human-curated tags, so mapping
  * them is reading, not guessing. Extend freely; anything unmapped stays unknown.
  */

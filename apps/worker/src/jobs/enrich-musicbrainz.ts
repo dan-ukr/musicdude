@@ -245,7 +245,10 @@ async function applyToTracks(artist: StoredArtist): Promise<number> {
     const language =
       track.language !== 'unknown'
         ? track.language
-        : (tagLanguage ?? resolveLanguage(track.title, artist.country, artist.languages ?? []));
+        : (tagLanguage ??
+           // Country fallback is enabled here because this is the final tier:
+           // the lyrics were already tried during the scan.
+           resolveLanguage(track.title, artist.country, artist.languages ?? [], true));
 
     if (region === 'unknown' && genres.length === 0 && !language) continue;
 
