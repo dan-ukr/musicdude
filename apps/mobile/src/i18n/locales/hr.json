@@ -182,5 +182,8 @@
   "recommended": "preporučeno",
   "taste match": "poklapanje ukusa",
   "tracks": "pjesme",
-  "Instrumental": "Instrumental"
+  "Instrumental": "Instrumental",
+  "Because you play {artist} — this is next door to them": "Jer slušaš {artist} — ovo je odmah do njih",
+  "A thin edge of your library: {region}": "Tanki rub tvoje biblioteke: {region}",
+  "You loved this once and have not been back": "Ovo si obožavao i nisi se vratio"
 }

@@ -182,5 +182,8 @@
   "recommended": "önerilen",
   "taste match": "zevk eşleşmesi",
   "tracks": "parça",
-  "Instrumental": "Enstrümantal"
+  "Instrumental": "Enstrümantal",
+  "Because you play {artist} — this is next door to them": "{artist} dinlediğin için — bu tam yanı başında",
+  "A thin edge of your library: {region}": "Kitaplığının ince bir kenarı: {region}",
+  "You loved this once and have not been back": "Buna bayılırdın ve bir daha dönmedin"
 }

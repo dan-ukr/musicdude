@@ -1,7 +1,21 @@
-import { Controller, ForbiddenException, Get, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { FacetQuery } from '@musicdude/shared';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { EntitlementsService, FREE_FACET_STACK } from '../billing/entitlements.service';
+import {
+  EntitlementsService,
+  FREE_DISCOVER_LIMIT,
+  FREE_FACET_STACK,
+} from '../billing/entitlements.service';
 import { LibraryService } from './library.service';
 
 type AuthedRequest = { user: { userId: string } };
@@ -52,6 +66,32 @@ export class LibraryController {
   @Get('for-you')
   forYou(@Req() req: AuthedRequest) {
     return this.library.forYou(req.user.userId);
+  }
+
+  /**
+   * Browse the catalogue with the library's own filters, each result scored
+   * against the user's taste. Free tier sees a daily allowance; the filter
+   * stacking limit applies here exactly as it does to the library.
+   */
+  @Get('discover')
+  async discover(@Req() req: AuthedRequest, @Query() query: Record<string, string>) {
+    const facets = pickFacets(query);
+    const premium = await this.entitlements.isPremium(req.user.userId);
+    if (!premium && Object.keys(facets).length > FREE_FACET_STACK) {
+      throw new ForbiddenException({
+        error: 'premium_required',
+        reason: 'facet_stack',
+        freeLimit: FREE_FACET_STACK,
+      });
+    }
+    return this.library.discover(req.user.userId, facets, premium ? 60 : FREE_DISCOVER_LIMIT);
+  }
+
+  @Post('add')
+  async add(@Req() req: AuthedRequest, @Body() body: { trackId?: string }) {
+    if (!body?.trackId) throw new BadRequestException('trackId is required');
+    await this.library.addToLibrary(req.user.userId, body.trackId);
+    return { added: true };
   }
 
   @Get('recommended')

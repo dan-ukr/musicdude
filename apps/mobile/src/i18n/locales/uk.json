@@ -182,5 +182,8 @@
   "recommended": "рекомендовані",
   "taste match": "збіг смаків",
   "tracks": "треки",
-  "Instrumental": "Інструментальна"
+  "Instrumental": "Інструментальна",
+  "Because you play {artist} — this is next door to them": "Бо ти слухаєш {artist} — це сусідні двері",
+  "A thin edge of your library: {region}": "Тонкий край твоєї бібліотеки: {region}",
+  "You loved this once and have not been back": "Ти це любив і більше не повертався"
 }

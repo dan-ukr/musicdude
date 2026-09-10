@@ -7,6 +7,8 @@ const ENTITLEMENT = process.env.REVENUECAT_ENTITLEMENT_ID ?? 'premium';
 export const FREE_FACET_STACK = 2;
 export const FREE_PLAYLISTS_PER_MONTH = 3;
 export const FREE_CHANGE_DAYS = 30;
+/** Discoveries a free user can pull from the catalogue per request. */
+export const FREE_DISCOVER_LIMIT = 10;
 
 @Injectable()
 export class EntitlementsService {

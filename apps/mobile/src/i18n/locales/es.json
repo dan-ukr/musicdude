@@ -182,5 +182,8 @@
   "recommended": "recomendadas",
   "taste match": "afinidad de gustos",
   "tracks": "canciones",
-  "Instrumental": "Instrumental"
+  "Instrumental": "Instrumental",
+  "Because you play {artist} — this is next door to them": "Porque escuchas a {artist}: esto está al lado",
+  "A thin edge of your library: {region}": "Un borde fino de tu biblioteca: {region}",
+  "You loved this once and have not been back": "Te encantaba y no has vuelto"
 }

@@ -74,13 +74,29 @@ export type PortraitPayload = {
  */
 export type CardReason = { template: string; params: Record<string, string> };
 
+/** Why this track was chosen — the angle, not just the sentence. */
+export type CardKind =
+  | 'because-you-played'
+  | 'forgotten-favourite'
+  | 'deep-cut'
+  | 'bridge'
+  | 'follows-the-mood'
+  | 'breaks-the-mood'
+  | 'similar';
+
 export type DailyCard = {
   track: TrackSummary;
   reason: CardReason; // one bridge sentence — always free
+  kind: CardKind;
   date: string;
   action: DailyCardAction | null;
+  /** The recent tracks this recommendation was actually derived from. */
+  basedOn: { title: string; artist: string }[];
 };
 export type DailyCardAction = 'more-of-this' | 'get-me-out';
+
+/** A catalogue track scored against the viewer's taste, 0-100. */
+export type DiscoverTrack = TrackSummary & { compatibility: number };
 
 // ---------- Library ----------
 export type FacetOption = { value: string; count: number };
