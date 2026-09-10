@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 .DS_Store
 apps/ml-service/.cache/
+
+# AcousticBrainz index (multi-GB, rebuilt with scripts/acousticbrainz-index.py)
+data/

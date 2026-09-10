@@ -63,13 +63,92 @@ class AnalyzeResponse(BaseModel):
     embedding: List[float]
     analyzed: bool  # False when the audio could not be decoded
 
+    # --- what the recording is made of ---
+    # Ratio of percussive to total energy: drums-forward vs sustained material.
+    percussiveness: float = 0.0
+    # Sustained, low-flux harmonic content: strings, pads, held chords.
+    sustain: float = 0.0
+    # Sharp attacks per second: piano, plucked strings, programmed drums.
+    onset_rate: float = 0.0
+    # Confidence that a human voice is present, from vocal-band modulation.
+    vocal_confidence: float = 0.0
+    # Coarse instrumentation labels, most prominent first.
+    instrumentation: List[str] = []
+
+    # --- shape of the excerpt ---
+    # Distinct sections detected inside the clip via self-similarity.
+    segments: int = 1
+    # A section change is audible in the excerpt (build, drop, verse->chorus).
+    has_transition: bool = False
+    # Energy trajectory across the excerpt: rising, falling or steady.
+    contour: str = "steady"
+
+
+AB_INDEX_PATH = os.environ.get(
+    "AB_INDEX_PATH",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "data", "acousticbrainz.sqlite"),
+)
+
+
+def _ab_connection():
+    """Read-only handle to the AcousticBrainz index, or None when absent."""
+    if not os.path.exists(AB_INDEX_PATH):
+        return None
+    import sqlite3
+
+    conn = sqlite3.connect(f"file:{AB_INDEX_PATH}?mode=ro", uri=True, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+AB_DB = _ab_connection()
+
 
 @app.get("/health")
 def health() -> Dict[str, Any]:
+    indexed = 0
+    if AB_DB is not None:
+        try:
+            indexed = AB_DB.execute("SELECT count(*) FROM analysis").fetchone()[0]
+        except Exception:  # noqa: BLE001
+            indexed = -1
     return {
         "status": "ok",
         "engine": "librosa" if LIBROSA_AVAILABLE else "unavailable",
         "embedding_dim": EMBEDDING_DIM,
+        "full_track_index": indexed,
+    }
+
+
+@app.get("/analysis/{mbid}")
+def full_track_analysis(mbid: str) -> Dict[str, Any]:
+    """
+    Analysis of the *complete* recording, from AcousticBrainz.
+
+    We cannot obtain full audio for commercial tracks, so everything we measure
+    ourselves comes from a 30-second preview. AcousticBrainz ran Essentia over
+    whole recordings and published the results; the web service was retired but
+    the bulk dumps are still available, so the data is reachable even though the
+    API is not. `scripts/acousticbrainz-index.py` distils those dumps into the
+    local index this endpoint reads.
+    """
+    if AB_DB is None:
+        return {"found": False, "reason": "index not built"}
+    row = AB_DB.execute("SELECT * FROM analysis WHERE mbid = ?", (mbid,)).fetchone()
+    if row is None:
+        return {"found": False}
+
+    data = dict(row)
+    classifiers = {}
+    for key, value in list(data.items()):
+        if key in ("mbid", "length") or key.endswith("_p"):
+            continue
+        classifiers[key] = {"value": value, "probability": data.get(f"{key}_p")}
+    return {
+        "found": True,
+        "mbid": data["mbid"],
+        "length_seconds": data["length"],
+        "classifiers": classifiers,
     }
 
 
@@ -139,8 +218,18 @@ def _features(y: np.ndarray) -> AnalyzeResponse:
     )
 
     embedding = _embedding(mfcc, chroma, centroid, rolloff, bandwidth, flatness, zcr, rms, tempo)
+    texture = _texture(y, stft, mfcc)
+    shape = _shape(y, mfcc, chroma, rms)
 
     return AnalyzeResponse(
+        percussiveness=round(texture["percussiveness"], 4),
+        sustain=round(texture["sustain"], 4),
+        onset_rate=round(texture["onset_rate"], 3),
+        vocal_confidence=round(texture["vocal_confidence"], 4),
+        instrumentation=texture["instrumentation"],
+        segments=shape["segments"],
+        has_transition=shape["has_transition"],
+        contour=shape["contour"],
         tempo_bpm=round(tempo, 1),
         energy=round(energy, 4),
         valence=round(valence, 4),
@@ -151,6 +240,103 @@ def _features(y: np.ndarray) -> AnalyzeResponse:
         embedding=embedding,
         analyzed=True,
     )
+
+
+def _texture(y: np.ndarray, stft: np.ndarray, mfcc: np.ndarray) -> Dict[str, Any]:
+    """
+    What the recording is made of, from the signal rather than from metadata.
+
+    Harmonic/percussive separation splits drums from sustained material; the
+    balance between them, how sharply notes start, and how much the vocal band
+    fluctuates are enough to name the instrumentation in coarse terms. These are
+    measurements of a real signal, not classifier guesses — deliberately broad
+    labels, because a 30-second excerpt cannot support finer claims.
+    """
+    harmonic, percussive = librosa.effects.hpss(y)
+    h_energy = float(np.mean(harmonic**2))
+    p_energy = float(np.mean(percussive**2))
+    percussiveness = _squash(p_energy / max(h_energy + p_energy, 1e-9))
+
+    onset_env = librosa.onset.onset_strength(y=y, sr=SAMPLE_RATE)
+    onsets = librosa.onset.onset_detect(onset_envelope=onset_env, sr=SAMPLE_RATE)
+    duration = max(len(y) / SAMPLE_RATE, 1e-6)
+    onset_rate = float(len(onsets)) / duration
+
+    # Sustained material barely changes frame to frame; plucked and struck
+    # sounds do. Flux is normalised by the signal's own magnitude, otherwise
+    # quiet recordings read as sustained and loud ones as none.
+    h_stft = np.abs(librosa.stft(harmonic, n_fft=2048, hop_length=512))
+    flux = float(np.mean(np.abs(np.diff(h_stft, axis=1))))
+    relative_flux = flux / max(float(np.mean(h_stft)), 1e-9)
+    sustain = _squash(1.0 - relative_flux / 0.6)
+
+    # Voice presence is NOT inferred from the audio here. Spectral activity in
+    # the vocal band scores solo piano and jazz trumpet as high as a singer —
+    # measured at 0.77 for Debussy and 0.73 for Miles Davis, both instrumental.
+    # The lyrics source already answers this exactly, so the worker fills it in
+    # from there rather than guessing from 30 seconds.
+
+    # Only labels the measurements actually support. Two reliable axes beat
+    # five unreliable ones: percussive/sustained is separable, "electronic vs
+    # acoustic" from spectral flatness alone was not (it called Nirvana
+    # electronic).
+    labels: List[str] = []
+    if percussiveness > 0.5:
+        labels.append("percussive")
+    elif percussiveness < 0.15:
+        labels.append("smooth")
+    if sustain > 0.6:
+        labels.append("sustained")
+    if onset_rate > 4.0:
+        labels.append("busy")
+    elif onset_rate < 1.5:
+        labels.append("sparse")
+
+    return {
+        "percussiveness": percussiveness,
+        "sustain": sustain,
+        "onset_rate": onset_rate,
+        "vocal_confidence": 0.0,
+        "instrumentation": labels,
+    }
+
+
+def _shape(y: np.ndarray, mfcc: np.ndarray, chroma: np.ndarray, rms: np.ndarray) -> Dict[str, Any]:
+    """
+    Structure *within* the excerpt.
+
+    Full song structure needs the whole recording, which we cannot obtain for
+    commercial tracks. What a 30-second excerpt does support is whether it holds
+    more than one section — a build, a drop, a verse running into a chorus — via
+    a self-similarity recurrence matrix over timbre and harmony. That is a real
+    structural statement about the part of the song we actually have.
+    """
+    try:
+        features = np.vstack([librosa.util.normalize(mfcc), librosa.util.normalize(chroma)])
+        # Sub-sample: boundary detection wants a coarse view, not every frame.
+        step = max(features.shape[1] // 120, 1)
+        reduced = features[:, ::step]
+        n_segments = int(min(max(reduced.shape[1] // 20, 2), 6))
+        boundaries = librosa.segment.agglomerative(reduced, n_segments)
+        segments = int(len(np.unique(boundaries)))
+    except Exception:  # noqa: BLE001 - structure is optional, never fatal
+        segments = 1
+
+    thirds = np.array_split(rms, 3)
+    means = [float(np.mean(t)) for t in thirds if t.size]
+    contour = "steady"
+    if len(means) == 3:
+        rise = (means[2] - means[0]) / max(means[0], 1e-6)
+        if rise > 0.25:
+            contour = "rising"
+        elif rise < -0.25:
+            contour = "falling"
+
+    # A transition is audible when the sections differ enough to be heard,
+    # not merely enough to be measured.
+    has_transition = segments >= 3 or contour != "steady"
+
+    return {"segments": segments, "has_transition": bool(has_transition), "contour": contour}
 
 
 def _estimate_key(chroma: np.ndarray) -> tuple[int, int]:
